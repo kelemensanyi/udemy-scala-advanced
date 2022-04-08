@@ -82,11 +82,22 @@ object MyStream {
 object Main extends App {
   val naturals: MyStream[Int] = MyStream.from(0)(_ + 1)
   naturals.take(100).foreach(println)
-//  naturals.foreach(println) // will crash - infinite
   naturals.map(_ * 2).take(5).foreach(println)
   println(naturals.map(_ * 2).take(5).toList)
 
   val startFrom0 = 0 #:: naturals
   println(startFrom0.flatMap(x => new NonEmptyStream(x, new NonEmptyStream(x + 1, EmptyStream))).take(10).toList)
+
+  val fibonacci = MyStream.from((1, 1)) {
+    (a, b) => (b, a + b)
+  }.map(_._1);
+  System.out.println(fibonacci.take(10).toList)
+
+  val primes = MyStream.from((2, naturals.tail.tail.tail)) {
+    case (a, s) =>
+      val filteredS = s.filter(_ % a != 0)
+      (filteredS.head, filteredS)
+  }.map(_._1)
+  System.out.println(primes.take(30).toList)
 
 }
