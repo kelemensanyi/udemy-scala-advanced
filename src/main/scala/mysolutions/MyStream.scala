@@ -2,6 +2,8 @@ package mysolutions
 
 import lectures.part2afp.LazyEvaluation.MyStream
 
+import scala.annotation.tailrec
+
 abstract class MyStream[+A] {
   def isEmpty: Boolean
   def head: A
@@ -17,6 +19,8 @@ abstract class MyStream[+A] {
 
   def take(n: Int): MyStream[A] // takes the first n elements out of this stream
   def takeAsList(n: Int): List[A]
+
+  def toList: List[A]
 }
 
 object EmptyStream extends MyStream[Nothing] {
@@ -24,16 +28,18 @@ object EmptyStream extends MyStream[Nothing] {
   def head = throw new Exception()
   def tail = throw new Exception()
 
-  def #::[B](element: B): MyStream[B] = NonEmptyStream(element, EmptyStream)
+  def #::[B](element: B): MyStream[B] = NonEmptyStream(element, this)
   def ++[B >: Nothing](anotherStream: => MyStream[B]): MyStream[B] = anotherStream
 
   def foreach(f: Nothing => Unit) = ()
-  def map[B](f: Nothing => B) = EmptyStream
-  def flatMap[B](f: Nothing => MyStream[B]) = EmptyStream
-  def filter(predicate: Nothing => Boolean) = EmptyStream
+  def map[B](f: Nothing => B) = this
+  def flatMap[B](f: Nothing => MyStream[B]) = this
+  def filter(predicate: Nothing => Boolean) = this
 
-  def take(n: Int) = if (n == 0) EmptyStream else throw new Exception()
-  def takeAsList(n: Int) = if (n == 0) Nil else throw new Exception()
+  def take(n: Int) = this
+  def takeAsList(n: Int) = Nil
+  def toList: List[Nothing] = Nil
+
 }
 
 class NonEmptyStream[+A](val head: A, tailParam: => MyStream[A]) extends MyStream[A] {
@@ -51,10 +57,22 @@ class NonEmptyStream[+A](val head: A, tailParam: => MyStream[A]) extends MyStrea
 
   def map[B](f: A => B): MyStream[B] = NonEmptyStream(f(head), tail.map(f))
   def flatMap[B](f: A => MyStream[B]): MyStream[B] = f(head) ++ tail.flatMap(f)
-  def filter(predicate: A => Boolean): MyStream[A] = if (predicate(head)) NonEmptyStream(head, tail.filter(predicate)) else tail.filter(predicate)
+  def filter(predicate: A => Boolean): MyStream[A] =
+    if (predicate(head)) NonEmptyStream(head, tail.filter(predicate))
+    else tail.filter(predicate)
 
   def take(n: Int): MyStream[A] = if (n == 0) EmptyStream else NonEmptyStream(head, tail.take(n - 1)) // takes the first n elements out of this stream
   def takeAsList(n: Int): List[A] = if (n == 0) Nil else head :: tail.takeAsList(n - 1)
+
+  def toList: List[A] = {
+    @tailrec
+    def go(acc: List[A], s: MyStream[A]): List[A] = {
+      if (s.isEmpty) acc
+      else go(s.head :: acc, s.tail)
+    }
+    go(Nil, this).reverse
+  }
+
 }
 
 object MyStream {
@@ -66,4 +84,9 @@ object Main extends App {
   naturals.take(100).foreach(println)
 //  naturals.foreach(println) // will crash - infinite
   naturals.map(_ * 2).take(5).foreach(println)
+  println(naturals.map(_ * 2).take(5).toList)
+
+  val startFrom0 = 0 #:: naturals
+  println(startFrom0.flatMap(x => new NonEmptyStream(x, new NonEmptyStream(x + 1, EmptyStream))).take(10).toList)
+
 }
